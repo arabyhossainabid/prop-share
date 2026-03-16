@@ -1,0 +1,178 @@
+// PropShare - Complete Prisma Schema
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider   = "prisma-client-js"
+    engineType = "library"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+// ENUMS
+
+enum Role {
+    ADMIN
+    USER
+}
+
+enum PropertyStatus {
+    PENDING
+    APPROVED
+    SOLD
+}
+
+enum TransactionStatus {
+    PENDING
+    SUCCESS
+    FAILED
+}
+
+enum MarketListingStatus {
+    ACTIVE
+    SOLD
+    CANCELLED
+}
+
+// USER MODEL
+
+model User {
+    id        String   @id @default(cuid())
+    name      String
+    email     String   @unique
+    password  String?
+    role      Role     @default(USER)
+    isActive  Boolean  @default(true)
+    avatar    String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    investments     Investment[]
+    transactions    Transaction[]
+    marketListings  MarketListing[] @relation("SellerListings")
+    marketPurchases MarketListing[] @relation("BuyerPurchases")
+    accounts        Account[]
+    reviews         Review[]
+
+    @@map("user")
+}
+
+// ACCOUNT MODEL - OAuth (Google etc.)
+
+model Account {
+    id                String   @id @default(cuid())
+    userId            String
+    provider          String
+    providerAccountId String
+    accessToken       String?
+    refreshToken      String?
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+    @@index([userId])
+    @@map("account")
+}
+
+// PROPERTY MODEL
+
+model Property {
+    id              String         @id @default(cuid())
+    title           String
+    description     String
+    location        String
+    pricePerShare   Float
+    totalShares     Int
+    availableShares Int
+    images          String[]
+    expectedReturn  Float
+    status          PropertyStatus @default(PENDING)
+    isTrending      Boolean        @default(false)
+    createdAt       DateTime       @default(now())
+    updatedAt       DateTime       @updatedAt
+
+    investments    Investment[]
+    marketListings MarketListing[]
+    reviews        Review[]
+
+    @@map("property")
+}
+
+// INVESTMENT MODEL
+
+model Investment {
+    id           String   @id @default(cuid())
+    userId       String
+    propertyId   String
+    sharesBought Int
+    totalAmount  Float
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    transactions Transaction[]
+
+    @@map("investment")
+}
+
+// TRANSACTION MODEL
+
+model Transaction {
+    id              String            @id @default(cuid())
+    userId          String
+    investmentId    String?
+    amount          Float
+    paymentProvider String            @default("stripe")
+    stripePaymentId String?
+    status          TransactionStatus @default(PENDING)
+    type            String            @default("INVESTMENT")
+    createdAt       DateTime          @default(now())
+    updatedAt       DateTime          @updatedAt
+
+    user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    investment Investment? @relation(fields: [investmentId], references: [id])
+
+    @@map("transaction")
+}
+
+// MARKET LISTING MODEL - Secondary Market
+
+model MarketListing {
+    id            String              @id @default(cuid())
+    propertyId    String
+    sellerId      String
+    buyerId       String?
+    shares        Int
+    pricePerShare Float
+    status        MarketListingStatus @default(ACTIVE)
+    createdAt     DateTime            @default(now())
+    updatedAt     DateTime            @updatedAt
+
+    property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    seller   User     @relation("SellerListings", fields: [sellerId], references: [id])
+    buyer    User?    @relation("BuyerPurchases", fields: [buyerId], references: [id])
+
+    @@map("market_listing")
+}
+
+// REVIEW MODEL
+
+model Review {
+    id         String   @id @default(cuid())
+    userId     String
+    propertyId String
+    rating     Int
+    comment    String
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, propertyId])
+    @@map("review")
+}
