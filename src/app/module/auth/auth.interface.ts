@@ -1,6 +1,6 @@
 import { Role } from '@prisma/client';
 
-export type ILoginUserResponse = {
+export interface ILoginUserResponse {
     accessToken: string;
     refreshToken: string;
     user: {
@@ -8,6 +8,6 @@ export type ILoginUserResponse = {
         name: string;
         email: string;
         role: Role;
-        avatar?: string | null;
+        avatar: string | null;
     };
-};
+}

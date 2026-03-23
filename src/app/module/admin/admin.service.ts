@@ -1,70 +1,141 @@
+import { User, Role } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import AppError from '../../errorHelpers/AppError';
 import status from 'http-status';
 
-/**
- * Get all users overview
- */
-const getAllUsers = async () => {
-    return await prisma.user.findMany({
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            isActive: true,
-            createdAt: true,
-            _count: {
-                select: { investments: true, transactions: true, reviews: true }
-            }
-        },
-        orderBy: { createdAt: 'desc' }
-    });
+const getAllUsers = async (query: any) => {
+    const { page = 1, limit = 10, search } = query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const where: any = {};
+    if (search) {
+        where.OR = [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+        ];
+    }
+
+    const [data, total] = await Promise.all([
+        prisma.user.findMany({
+            where,
+            include: { _count: { select: { properties: true, investments: true } } },
+            skip,
+            take: Number(limit),
+            orderBy: { createdAt: 'desc' },
+        }),
+        prisma.user.count({ where }),
+    ]);
+
+    return { data, meta: { total, page: Number(page), limit: Number(limit) } };
 };
 
-/**
- * Update user status (Active/Deactive) or Role
- */
-const updateUser = async (id: string, payload: { role?: any, isActive?: boolean }) => {
+const updateUserStatus = async (userId: string, isActive: boolean) => {
     return await prisma.user.update({
-        where: { id },
-        data: payload
+        where: { id: userId },
+        data: { isActive },
     });
 };
 
-/**
- * Review Property (Approve/Reject)
- */
-const reviewProperty = async (id: string, status: 'APPROVED' | 'PENDING' | 'SOLD') => {
-    return await prisma.property.update({
-        where: { id },
-        data: { status }
+const updateUserRole = async (userId: string, role: Role) => {
+    return await prisma.user.update({
+        where: { id: userId },
+        data: { role },
     });
 };
 
-/**
- * Get Platform Analytics
- */
-const getPlatformAnalytics = async () => {
-    const totalProperties = await prisma.property.count();
-    const totalInvestors = await prisma.user.count({ where: { role: 'USER' } });
-    const activeInvestments = await prisma.investment.count();
-    const totalVolume = await prisma.transaction.aggregate({
-        where: { status: 'SUCCESS' },
-        _sum: { amount: true }
-    });
+const getDashboardStats = async () => {
+    const [
+        totalUsers,
+        totalProperties,
+        pendingReview,
+        approvedProperties,
+        totalCategories,
+        totalInvestments,
+        totalRevenue,
+        recentProperties,
+        topVotedProperties,
+    ] = await Promise.all([
+        prisma.user.count(),
+        prisma.property.count(),
+        prisma.property.count({ where: { status: 'PENDING' } }),
+        prisma.property.count({ where: { status: 'APPROVED' } }),
+        prisma.category.count(),
+        prisma.investment.count({ where: { status: 'SUCCESS' } }),
+        prisma.investment.aggregate({
+            where: { status: 'SUCCESS' },
+            _sum: { amount: true },
+        }),
+        prisma.property.findMany({
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: { author: { select: { name: true } }, category: true },
+        }),
+        prisma.property.findMany({
+            take: 5,
+            where: { status: 'APPROVED' },
+            orderBy: { votes: { _count: 'desc' } },
+            include: { author: { select: { name: true } }, category: true },
+        }),
+    ]);
 
     return {
-        totalProperties,
-        totalInvestors,
-        activeInvestments,
-        totalVolume: totalVolume._sum.amount || 0,
+        counters: {
+            totalUsers,
+            totalProperties,
+            pendingReview,
+            approvedProperties,
+            totalCategories,
+            totalInvestments,
+            totalRevenue: totalRevenue._sum.amount || 0,
+        },
+        recentProperties,
+        topVotedProperties,
     };
+};
+
+const getAllPropertiesAdmin = async (query: any) => {
+    const { page = 1, limit = 10, status: propertyStatus } = query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const where: any = {};
+    if (propertyStatus) where.status = propertyStatus;
+
+    const [data, total] = await Promise.all([
+        prisma.property.findMany({
+            where,
+            include: { author: { select: { name: true, email: true } }, category: true },
+            skip,
+            take: Number(limit),
+            orderBy: { createdAt: 'desc' },
+        }),
+        prisma.property.count({ where }),
+    ]);
+
+    return { data, meta: { total, page: Number(page), limit: Number(limit) } };
+};
+
+const getAllInvestmentsAdmin = async (query: any) => {
+    const { page = 1, limit = 10 } = query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [data, total] = await Promise.all([
+        prisma.investment.findMany({
+            include: { user: { select: { name: true, email: true } }, property: { select: { title: true } } },
+            skip,
+            take: Number(limit),
+            orderBy: { createdAt: 'desc' },
+        }),
+        prisma.investment.count(),
+    ]);
+
+    return { data, meta: { total, page: Number(page), limit: Number(limit) } };
 };
 
 export const AdminService = {
     getAllUsers,
-    updateUser,
-    reviewProperty,
-    getPlatformAnalytics
+    updateUserStatus,
+    updateUserRole,
+    getDashboardStats,
+    getAllPropertiesAdmin,
+    getAllInvestmentsAdmin,
 };

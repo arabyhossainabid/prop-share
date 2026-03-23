@@ -1,32 +1,47 @@
 import { z } from 'zod';
+import { PropertyStatus } from '@prisma/client';
 
-const create = z.object({
+const createPropertySchema = z.object({
     body: z.object({
-        title: z.string().min(3, 'Title is too short'),
-        description: z.string().min(10, 'Description is too short'),
-        location: z.string().min(3, 'Location is required'),
-        pricePerShare: z.number().positive(),
-        totalShares: z.number().int().positive(),
-        images: z.array(z.string()).min(1),
-        expectedReturn: z.number(),
+        title: z.string({ required_error: 'Title is required' }),
+        location: z.string({ required_error: 'Location is required' }),
+        description: z.string({ required_error: 'Description is required' }),
+        problemStatement: z.string().optional(),
+        proposedSolution: z.string().optional(),
+        images: z.array(z.string()).optional(),
+        pricePerShare: z.number({ required_error: 'Price per share is required' }),
+        totalShares: z.number({ required_error: 'Total shares is required' }),
+        expectedReturn: z.number().optional(),
+        categoryId: z.string({ required_error: 'Category is required' }),
+        isPaid: z.boolean().optional(),
     }),
 });
 
-const update = z.object({
+const updatePropertySchema = z.object({
     body: z.object({
         title: z.string().optional(),
-        description: z.string().optional(),
         location: z.string().optional(),
-        pricePerShare: z.number().positive().optional(),
-        totalShares: z.number().int().positive().optional(),
+        description: z.string().optional(),
+        problemStatement: z.string().optional(),
+        proposedSolution: z.string().optional(),
         images: z.array(z.string()).optional(),
+        pricePerShare: z.number().optional(),
+        totalShares: z.number().optional(),
         expectedReturn: z.number().optional(),
-        status: z.enum(['PENDING', 'APPROVED', 'SOLD']).optional(),
-        isTrending: z.boolean().optional(),
+        categoryId: z.string().optional(),
+        isPaid: z.boolean().optional(),
+    }),
+});
+
+const reviewPropertySchema = z.object({
+    body: z.object({
+        status: z.enum([PropertyStatus.APPROVED, PropertyStatus.REJECTED, PropertyStatus.UNDER_REVIEW]),
+        feedbackNote: z.string().optional(),
     }),
 });
 
 export const PropertyValidation = {
-    create,
-    update,
+    createPropertySchema,
+    updatePropertySchema,
+    reviewPropertySchema,
 };

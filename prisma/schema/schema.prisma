@@ -1,4 +1,4 @@
-// PropShare - Complete Prisma Schema
+// PropShare - Prisma Schema
 // Learn more: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -10,7 +10,7 @@ datasource db {
     provider = "postgresql"
 }
 
-// ENUMS
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
 
 enum Role {
     ADMIN
@@ -18,24 +18,25 @@ enum Role {
 }
 
 enum PropertyStatus {
+    DRAFT
     PENDING
+    UNDER_REVIEW
     APPROVED
-    SOLD
+    REJECTED
 }
 
-enum TransactionStatus {
+enum VoteType {
+    UPVOTE
+    DOWNVOTE
+}
+
+enum PaymentStatus {
     PENDING
     SUCCESS
     FAILED
 }
 
-enum MarketListingStatus {
-    ACTIVE
-    SOLD
-    CANCELLED
-}
-
-// USER MODEL
+// ─── USER ─────────────────────────────────────────────────────────────────────
 
 model User {
     id        String   @id @default(cuid())
@@ -45,20 +46,20 @@ model User {
     role      Role     @default(USER)
     isActive  Boolean  @default(true)
     avatar    String?
+    bio       String?
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    investments     Investment[]
-    transactions    Transaction[]
-    marketListings  MarketListing[] @relation("SellerListings")
-    marketPurchases MarketListing[] @relation("BuyerPurchases")
-    accounts        Account[]
-    reviews         Review[]
+    properties  Property[]
+    votes       Vote[]
+    comments    Comment[]
+    investments Investment[]
+    accounts    Account[]
 
-    @@map("user")
+    @@map("users")
 }
 
-// ACCOUNT MODEL - OAuth (Google etc.)
+// ─── ACCOUNT (OAuth) ─────────────────────────────────────────────────────────
 
 model Account {
     id                String   @id @default(cuid())
@@ -74,99 +75,67 @@ model Account {
 
     @@unique([provider, providerAccountId])
     @@index([userId])
-    @@map("account")
+    @@map("accounts")
 }
 
-// PROPERTY MODEL
+// ─── CATEGORY ─────────────────────────────────────────────────────────────────
+
+model Category {
+    id          String   @id @default(cuid())
+    name        String   @unique
+    description String?
+    icon        String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    properties Property[]
+
+    @@map("categories")
+}
+
+// ─── PROPERTY ─────────────────────────────────────────────────────────────────
 
 model Property {
-    id              String         @id @default(cuid())
-    title           String
-    description     String
-    location        String
-    pricePerShare   Float
-    totalShares     Int
-    availableShares Int
-    images          String[]
-    expectedReturn  Float
-    status          PropertyStatus @default(PENDING)
-    isTrending      Boolean        @default(false)
-    createdAt       DateTime       @default(now())
-    updatedAt       DateTime       @updatedAt
+    id               String         @id @default(cuid())
+    title            String
+    location         String
+    description      String
+    problemStatement String? // Context: Why this investment? (Mapped from EcoSpark Problem Statement)
+    proposedSolution String? // Context: High potential (Mapped from EcoSpark Proposed Solution)
+    images           String[]       @default([])
+    pricePerShare    Float
+    totalShares      Int
+    availableShares  Int
+    expectedReturn   Float? // ROI
+    isPaid           Boolean        @default(false)
+    status           PropertyStatus @default(DRAFT)
+    feedbackNote     String?
+    isFeatured       Boolean        @default(false)
+    viewCount        Int            @default(0)
+    categoryId       String
+    authorId         String
+    createdAt        DateTime       @default(now())
+    updatedAt        DateTime       @updatedAt
 
-    investments    Investment[]
-    marketListings MarketListing[]
-    reviews        Review[]
+    author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+    category    Category     @relation(fields: [categoryId], references: [id])
+    votes       Vote[]
+    comments    Comment[]
+    investments Investment[]
 
-    @@map("property")
+    @@index([authorId])
+    @@index([categoryId])
+    @@index([status])
+    @@map("properties")
 }
 
-// INVESTMENT MODEL
+// ─── VOTE (Interest/Upvote) ──────────────────────────────────────────────────
 
-model Investment {
-    id           String   @id @default(cuid())
-    userId       String
-    propertyId   String
-    sharesBought Int
-    totalAmount  Float
-    createdAt    DateTime @default(now())
-    updatedAt    DateTime @updatedAt
-
-    user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-    property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-    transactions Transaction[]
-
-    @@map("investment")
-}
-
-// TRANSACTION MODEL
-
-model Transaction {
-    id              String            @id @default(cuid())
-    userId          String
-    investmentId    String?
-    amount          Float
-    paymentProvider String            @default("stripe")
-    stripePaymentId String?
-    status          TransactionStatus @default(PENDING)
-    type            String            @default("INVESTMENT")
-    createdAt       DateTime          @default(now())
-    updatedAt       DateTime          @updatedAt
-
-    user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-    investment Investment? @relation(fields: [investmentId], references: [id])
-
-    @@map("transaction")
-}
-
-// MARKET LISTING MODEL - Secondary Market
-
-model MarketListing {
-    id            String              @id @default(cuid())
-    propertyId    String
-    sellerId      String
-    buyerId       String?
-    shares        Int
-    pricePerShare Float
-    status        MarketListingStatus @default(ACTIVE)
-    createdAt     DateTime            @default(now())
-    updatedAt     DateTime            @updatedAt
-
-    property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-    seller   User     @relation("SellerListings", fields: [sellerId], references: [id])
-    buyer    User?    @relation("BuyerPurchases", fields: [buyerId], references: [id])
-
-    @@map("market_listing")
-}
-
-// REVIEW MODEL
-
-model Review {
+model Vote {
     id         String   @id @default(cuid())
     userId     String
     propertyId String
-    rating     Int
-    comment    String
+    voteType   VoteType
     createdAt  DateTime @default(now())
     updatedAt  DateTime @updatedAt
 
@@ -174,5 +143,51 @@ model Review {
     property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
     @@unique([userId, propertyId])
-    @@map("review")
+    @@index([propertyId])
+    @@map("votes")
+}
+
+// ─── COMMENT ──────────────────────────────────────────────────────────────────
+
+model Comment {
+    id         String   @id @default(cuid())
+    content    String
+    isDeleted  Boolean  @default(false)
+    userId     String
+    propertyId String
+    parentId   String?
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+    parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+    replies  Comment[] @relation("CommentReplies")
+
+    @@index([propertyId])
+    @@index([parentId])
+    @@map("comments")
+}
+
+// ─── INVESTMENT ────────────────────────────────────────────────────────────────
+
+model Investment {
+    id              String        @id @default(cuid())
+    userId          String
+    propertyId      String
+    amount          Float
+    shares          Int           @default(1)
+    paymentProvider String        @default("stripe")
+    stripeSessionId String?
+    stripePaymentId String?
+    status          PaymentStatus @default(PENDING)
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
+
+    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@index([propertyId])
+    @@map("investments")
 }

@@ -2,28 +2,43 @@ import { Router } from 'express';
 import { AdminController } from './admin.controller';
 import { checkAuth } from '../../middleware/checkAuth';
 import { Role } from '@prisma/client';
-import validateRequest from '../../middleware/validateRequest';
-import { AdminValidation } from './admin.validation';
 
 const router = Router();
 
-// All routes here are ADMIN only
-router.use(checkAuth(Role.ADMIN));
-
-router.get('/users', AdminController.getAllUsers);
-
-router.patch(
-    '/users/:id',
-    validateRequest(AdminValidation.updateUser),
-    AdminController.updateUser
+router.get(
+    '/users',
+    checkAuth(Role.ADMIN),
+    AdminController.getAllUsers
 );
 
 router.patch(
-    '/properties/:id/review',
-    validateRequest(AdminValidation.reviewProperty),
-    AdminController.reviewProperty
+    '/users/:userId/status',
+    checkAuth(Role.ADMIN),
+    AdminController.updateUserStatus
 );
 
-router.get('/analytics', AdminController.getAnalytics);
+router.patch(
+    '/users/:userId/role',
+    checkAuth(Role.ADMIN),
+    AdminController.updateUserRole
+);
+
+router.get(
+    '/stats',
+    checkAuth(Role.ADMIN),
+    AdminController.getDashboardStats
+);
+
+router.get(
+    '/properties',
+    checkAuth(Role.ADMIN),
+    AdminController.getAllPropertiesAdmin
+);
+
+router.get(
+    '/investments',
+    checkAuth(Role.ADMIN),
+    AdminController.getAllInvestmentsAdmin
+);
 
 export const AdminRoutes = router;
