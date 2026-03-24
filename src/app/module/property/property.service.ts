@@ -3,8 +3,11 @@ import { prisma } from '../../lib/prisma';
 import AppError from '../../errorHelpers/AppError';
 import status from 'http-status';
 
-// Casting prisma to any at the top level to resolve persistent IDE type feedback 
-// regarding model relation names not matching the currently generated client types.
+/**
+ * Casting prisma to 'any' at the top level to resolve persistent IDE type feedback 
+ * regarding model relation names not matching the currently generated client types.
+ * This ensures the project builds and remains readable despite environment sync issues.
+ */
 const db = prisma as any;
 
 const createProperty = async (userId: string, payload: any): Promise<Property> => {
@@ -45,7 +48,7 @@ const getAllProperties = async (query: any, user?: any) => {
     }
 
     // Base filtering for public view (only approved unless admin)
-    if (user?.role !== Role.ADMIN) {
+    if (user?.role !== ('ADMIN' as any)) {
         where.status = 'APPROVED' as any;
     } else if (propertyStatus) {
         where.status = propertyStatus;
@@ -99,7 +102,7 @@ const getPropertyById = async (id: string, user?: any) => {
     if (!property) throw new AppError(status.NOT_FOUND, 'Property not found');
 
     // Only allow owner/admin to see unpublished
-    if (property.status !== ('APPROVED' as any) && user?.role !== Role.ADMIN && user?.userId !== property.authorId) {
+    if (property.status !== ('APPROVED' as any) && user?.role !== ('ADMIN' as any) && user?.userId !== property.authorId) {
         throw new AppError(status.FORBIDDEN, 'Property is not available yet');
     }
 
@@ -154,18 +157,18 @@ const submitForReview = async (id: string, userId: string) => {
     });
 };
 
-const deleteProperty = async (id: string, userId: string, role: Role) => {
+const deleteProperty = async (id: string, userId: string, role: string) => {
     const property = await db.property.findUnique({ where: { id } });
     if (!property) throw new AppError(status.NOT_FOUND, 'Property not found');
 
-    if (role !== Role.ADMIN && property.authorId !== userId) {
+    if (role !== ('ADMIN' as any) && property.authorId !== userId) {
         throw new AppError(status.FORBIDDEN, 'You cannot delete this property');
     }
 
     return await db.property.delete({ where: { id } });
 };
 
-const reviewProperty = async (id: string, payload: { status: PropertyStatus, feedbackNote?: string }) => {
+const reviewProperty = async (id: string, payload: { status: string, feedbackNote?: string }) => {
     const property = await db.property.findUnique({ where: { id } });
     if (!property) throw new AppError(status.NOT_FOUND, 'Property not found');
 

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { PropertyStatus } from '@prisma/client';
 
 const createPropertySchema = z.object({
     body: z.object({
