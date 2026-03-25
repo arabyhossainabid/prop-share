@@ -1,26 +1,29 @@
-import { Router } from 'express';
-import { InvestmentController } from './investment.controller';
-import { checkAuth } from '../../middleware/checkAuth';
 import { Role } from '@prisma/client';
+import { Router } from 'express';
+import { checkAuth } from '../../middleware/checkAuth';
+import validateRequest from '../../middleware/validateRequest';
+import { InvestmentController } from './investment.controller';
+import { InvestmentValidation } from './investment.validation';
 
 const router = Router();
 
 router.post(
-    '/checkout/:propertyId',
-    checkAuth(Role.USER, Role.ADMIN),
-    InvestmentController.createCheckoutSession
+  '/checkout/:propertyId',
+  checkAuth(Role.USER, Role.ADMIN),
+  validateRequest(InvestmentValidation.createCheckoutSessionSchema),
+  InvestmentController.createCheckoutSession
 );
 
 router.get(
-    '/my-investments',
-    checkAuth(Role.USER, Role.ADMIN),
-    InvestmentController.getMyInvestments
+  '/my-investments',
+  checkAuth(Role.USER, Role.ADMIN),
+  InvestmentController.getMyInvestments
 );
 
 router.get(
-    '/check/:propertyId',
-    checkAuth(Role.USER, Role.ADMIN),
-    InvestmentController.checkHasInvestment
+  '/check/:propertyId',
+  checkAuth(Role.USER, Role.ADMIN),
+  InvestmentController.checkHasInvestment
 );
 
 // Note: Webhook is usually called directly in app.ts to avoid express.json() interference
