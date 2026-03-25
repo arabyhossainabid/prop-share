@@ -13,7 +13,7 @@ const app: Express = express();
 
 // CORS
 app.use(cors({
-    origin: [envVars.FRONTEND_URL, 'http://localhost:3000'],
+    origin: [envVars.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:3001'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'stripe-signature'],

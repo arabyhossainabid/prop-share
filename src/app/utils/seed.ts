@@ -12,24 +12,25 @@ const defaultCategories = [
 
 export const seedSuperAdmin = async () => {
     try {
-        // Seed admin user
-        const existingAdmin = await prisma.user.findUnique({
-            where: { email: envVars.ADMIN_EMAIL },
-        });
+        const hashedPassword = await bcrypt.hash(envVars.ADMIN_PASSWORD, 12);
 
-        if (!existingAdmin) {
-            const hashedPassword = await bcrypt.hash(envVars.ADMIN_PASSWORD, 12);
-            await prisma.user.create({
-                data: {
-                    name: envVars.ADMIN_NAME,
-                    email: envVars.ADMIN_EMAIL,
-                    password: hashedPassword,
-                    role: 'ADMIN',
-                    isActive: true,
-                },
-            });
-            console.log(`Admin user seeded: ${envVars.ADMIN_EMAIL}`);
-        }
+        await prisma.user.upsert({
+            where: { email: envVars.ADMIN_EMAIL },
+            update: {
+                name: envVars.ADMIN_NAME,
+                password: hashedPassword,
+                role: 'ADMIN',
+                isActive: true,
+            },
+            create: {
+                name: envVars.ADMIN_NAME,
+                email: envVars.ADMIN_EMAIL,
+                password: hashedPassword,
+                role: 'ADMIN',
+                isActive: true,
+            },
+        });
+        console.log(`Admin user seeded/updated: ${envVars.ADMIN_EMAIL}`);
 
         // Seed default categories
         for (const cat of defaultCategories) {

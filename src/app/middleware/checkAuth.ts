@@ -9,7 +9,12 @@ import { IRequestUser } from '../interfaces/requestUser.interface';
 
 export const checkAuth = (...authRoles: Role[]) => async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const accessToken = CookieUtils.getCookie(req, 'accessToken');
+        let accessToken = CookieUtils.getCookie(req, 'accessToken');
+
+        // Check if token exists in headers if not in cookie
+        if (!accessToken && req.headers.authorization) {
+            accessToken = req.headers.authorization.split(' ')[1];
+        }
 
         if (!accessToken) {
             throw new AppError(status.UNAUTHORIZED, 'Unauthorized access! No access token provided.');

@@ -39,12 +39,18 @@ const getAllProperties = async (query: any, user?: any) => {
     const where: any = {};
 
     const orderBy: any = {};
+    const validSortFields = ['id', 'title', 'location', 'description', 'pricePerShare', 'totalShares', 'availableShares', 'status', 'viewCount', 'createdAt', 'updatedAt'];
+
     if (sortBy === 'top_voted') {
         orderBy.votes = { _count: order };
     } else if (sortBy === 'most_commented') {
         orderBy.comments = { _count: order };
-    } else {
+    } else if (sortBy === 'newest') {
+        orderBy.createdAt = 'desc';
+    } else if (validSortFields.includes(sortBy)) {
         orderBy[sortBy] = order;
+    } else {
+        orderBy.createdAt = 'desc'; // Safe fallback
     }
 
     // Base filtering for public view (only approved unless admin)

@@ -31,14 +31,30 @@ const loginUser = async (payload: any) => {
     const isMatched = await bcrypt.compare(payload.password, user.password);
     if (!isMatched) throw new AppError(status.UNAUTHORIZED, 'Invalid credentials');
 
-    const accessToken = jwtUtils.signToken(
-        { userId: user.id, email: user.email, role: user.role, name: user.name },
-        envVars.JWT_ACCESS_SECRET,
-        envVars.JWT_ACCESS_EXPIRES_IN
-    );
+    const jwtPayload = { userId: user.id, email: user.email, role: user.role, name: user.name };
+
+    const accessToken = jwtUtils.getAccessToken(jwtPayload);
+    const refreshToken = jwtUtils.getRefreshToken(jwtPayload);
 
     const { password, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, accessToken };
+    return { user: userWithoutPassword, accessToken, refreshToken };
+};
+
+const refreshToken = async (token: string) => {
+    const verifiedToken = jwtUtils.verifyToken(token, envVars.JWT_REFRESH_SECRET);
+    if (!verifiedToken.success || !verifiedToken.data) {
+        throw new AppError(status.UNAUTHORIZED, 'Invalid refresh token');
+    }
+
+    const { userId } = verifiedToken.data;
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError(status.NOT_FOUND, 'User not found');
+    if (!user.isActive) throw new AppError(status.FORBIDDEN, 'Your account is deactivated');
+
+    const jwtPayload = { userId: user.id, email: user.email, role: user.role, name: user.name };
+    const accessToken = jwtUtils.getAccessToken(jwtPayload);
+
+    return { accessToken };
 };
 
 const getMe = async (userId: string) => {
@@ -67,6 +83,7 @@ const deleteAccount = async (userId: string) => {
 export const AuthService = {
     registerUser,
     loginUser,
+    refreshToken,
     getMe,
     updateProfile,
     deleteAccount,
