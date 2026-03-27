@@ -1,10 +1,9 @@
-import type { Router } from 'express';
-import { toHandler } from 'better-auth/express';
+import { Request, Response, NextFunction } from 'express';
 import { auth } from '../../lib/betterAuth';
 
 /**
- * BetterAuth routes handler for Express.
- * This exports a middleware that handles all BetterAuth auth endpoints.
+ * BetterAuth request handler middleware.
+ * Processes all BetterAuth routes and callbacks.
  * Routes include:
  * - POST /api/v1/auth/sign-up
  * - POST /api/v1/auth/sign-in
@@ -13,4 +12,26 @@ import { auth } from '../../lib/betterAuth';
  * - GET /api/v1/auth/session
  * - GET /api/v1/auth/callback/:provider
  */
-export const betterAuthHandler = toHandler(auth);
+export const betterAuthHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Let BetterAuth handle the request
+    const response = await auth.handler(req as any);
+    
+    if (response) {
+      res.status(response.status || 200);
+      Object.entries(response.headers || {}).forEach(([key, value]) => {
+        res.setHeader(key, value as string);
+      });
+      res.send(response.body);
+    } else {
+      next();
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
