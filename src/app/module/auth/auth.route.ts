@@ -1,10 +1,10 @@
 import { Role } from '@prisma/client';
 import { Router } from 'express';
-import { betterAuthHandler } from './betterAuth.handler';
 import { checkAuth } from '../../middleware/checkAuth';
 import validateRequest from '../../middleware/validateRequest';
 import { AuthController } from './auth.controller';
 import { AuthValidation } from './auth.validation';
+import { betterAuthHandler } from './betterAuth.handler';
 
 const router = Router();
 

@@ -1,47 +1,83 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
-import { envVars } from '../config/env';
+
+// Hardcoded admin credentials - no ENV required
+const ADMIN_CONFIG = {
+  email: 'admin@propshare.com',
+  password: 'propshare123',
+  name: 'PropShare Admin',
+};
 
 const defaultCategories = [
-    { name: 'Residential', description: 'Apartments, houses, and multi-family homes', icon: 'home' },
-    { name: 'Commercial', description: 'Office spaces, retail shops, and warehouses', icon: 'building' },
-    { name: 'Industrial', description: 'Manufacturing plants and logistics centers', icon: 'factory' },
-    { name: 'Land', description: 'Undeveloped plots and agricultural land', icon: 'map' },
-    { name: 'Vacation Homes', description: 'Short-term rentals and holiday properties', icon: 'palmtree' },
+  {
+    name: 'Residential',
+    description: 'Apartments, houses, and multi-family homes',
+    icon: 'home',
+  },
+  {
+    name: 'Commercial',
+    description: 'Office spaces, retail shops, and warehouses',
+    icon: 'building',
+  },
+  {
+    name: 'Industrial',
+    description: 'Manufacturing plants and logistics centers',
+    icon: 'factory',
+  },
+  {
+    name: 'Land',
+    description: 'Undeveloped plots and agricultural land',
+    icon: 'map',
+  },
+  {
+    name: 'Vacation Homes',
+    description: 'Short-term rentals and holiday properties',
+    icon: 'palmtree',
+  },
 ];
 
+/**
+ * Seed default admin user and categories into the database.
+ * Admin credentials are hardcoded and do not require ENV variables.
+ *
+ * Admin can be accessed with:
+ * - Email: admin@propshare.com
+ * - Password: propshare123
+ */
 export const seedSuperAdmin = async () => {
-    try {
-        const hashedPassword = await bcrypt.hash(envVars.ADMIN_PASSWORD, 12);
+  try {
+    // Hash admin password with bcrypt for secure storage
+    const hashedPassword = await bcrypt.hash(ADMIN_CONFIG.password, 12);
 
-        await prisma.user.upsert({
-            where: { email: envVars.ADMIN_EMAIL },
-            update: {
-                name: envVars.ADMIN_NAME,
-                password: hashedPassword,
-                role: 'ADMIN',
-                isActive: true,
-            },
-            create: {
-                name: envVars.ADMIN_NAME,
-                email: envVars.ADMIN_EMAIL,
-                password: hashedPassword,
-                role: 'ADMIN',
-                isActive: true,
-            },
-        });
-        console.log(`Admin user seeded/updated: ${envVars.ADMIN_EMAIL}`);
+    // Upsert admin user - create if not exists, update if exists
+    await prisma.user.upsert({
+      where: { email: ADMIN_CONFIG.email },
+      update: {
+        name: ADMIN_CONFIG.name,
+        password: hashedPassword,
+        role: 'ADMIN',
+        isActive: true,
+      },
+      create: {
+        name: ADMIN_CONFIG.name,
+        email: ADMIN_CONFIG.email,
+        password: hashedPassword,
+        role: 'ADMIN',
+        isActive: true,
+      },
+    });
+    console.log(`✅ Admin user seeded/updated: ${ADMIN_CONFIG.email}`);
 
-        // Seed default categories
-        for (const cat of defaultCategories) {
-            await prisma.category.upsert({
-                where: { name: cat.name },
-                create: cat,
-                update: {},
-            });
-        }
-        console.log('PropShare Categories seeded');
-    } catch (error) {
-        console.error('Seed error:', error);
+    // Seed default property categories
+    for (const cat of defaultCategories) {
+      await prisma.category.upsert({
+        where: { name: cat.name },
+        create: cat,
+        update: {},
+      });
     }
+    console.log('✅ PropShare Categories seeded');
+  } catch (error) {
+    console.error('❌ Seed error:', error);
+  }
 };

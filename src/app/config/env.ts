@@ -18,9 +18,6 @@ interface EnvConfig {
     STRIPE_SECRET_KEY: string;
     STRIPE_WEBHOOK_SECRET: string;
   };
-  ADMIN_EMAIL: string;
-  ADMIN_PASSWORD: string;
-  ADMIN_NAME: string;
   CLOUDINARY: {
     CLOUD_NAME: string;
     API_KEY: string;
@@ -36,8 +33,6 @@ const loadEnvVariables = (): EnvConfig => {
     'JWT_ACCESS_SECRET',
     'JWT_REFRESH_SECRET',
     'FRONTEND_URL',
-    'ADMIN_EMAIL',
-    'ADMIN_PASSWORD',
   ];
 
   requiredEnvVars.forEach((variable) => {
@@ -62,9 +57,6 @@ const loadEnvVariables = (): EnvConfig => {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY as string,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET as string,
     },
-    ADMIN_EMAIL: process.env.ADMIN_EMAIL as string,
-    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
-    ADMIN_NAME: process.env.ADMIN_NAME || 'PropShare Admin',
     CLOUDINARY: {
       CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME as string,
       API_KEY: process.env.CLOUDINARY_API_KEY as string,
