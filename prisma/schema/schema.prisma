@@ -39,28 +39,65 @@ enum PaymentStatus {
 // ─── USER ─────────────────────────────────────────────────────────────────────
 
 model User {
+    id            String   @id @default(cuid())
+    name          String?
+    email         String   @unique
+    emailVerified Boolean  @default(false)
+    password      String?
+    role          Role     @default(USER)
+    isActive      Boolean  @default(true)
+    avatar        String?
+    phone         String?  @unique
+    bio           String?
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    properties      Property[]
+    votes           Vote[]
+    comments        Comment[]
+    investments     Investment[]
+    accounts        Account[]
+    sessions        Session[]
+    blogs           Blog[]
+    contacts        Contact[]
+    contactReplies  ContactReply[]
+    verifications   Verification[]
+
+    @@map("users")
+}
+
+// ─── SESSION (BetterAuth) ──────────────────────────────────────────────────────
+
+model Session {
     id        String   @id @default(cuid())
-    name      String
-    email     String   @unique
-    password  String?
-    role      Role     @default(USER)
-    isActive  Boolean  @default(true)
-    avatar    String?
-    phone     String?  @unique
-    bio       String?
+    userId    String
+    token     String   @unique
+    expiresAt DateTime
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    properties  Property[]
-    votes       Vote[]
-    comments    Comment[]
-    investments Investment[]
-    accounts    Account[]
-    blogs       Blog[]
-    contacts    Contact[]
-    contactReplies ContactReply[]
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@map("users")
+    @@index([userId])
+    @@index([token])
+    @@map("sessions")
+}
+
+// ─── VERIFICATION (BetterAuth) ─────────────────────────────────────────────────
+
+model Verification {
+    id        String   @id @default(cuid())
+    userId    String?
+    identifier String
+    value      String
+    expiresAt DateTime
+    createdAt DateTime @default(now())
+
+    user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([identifier, value])
+    @@index([userId])
+    @@map("verifications")
 }
 
 // ─── ACCOUNT (OAuth) ─────────────────────────────────────────────────────────

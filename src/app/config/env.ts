@@ -11,6 +11,9 @@ interface EnvConfig {
   JWT_ACCESS_EXPIRES_IN: string;
   JWT_REFRESH_EXPIRES_IN: string;
   FRONTEND_URL: string;
+  BETTER_AUTH_SECRET: string;
+  BETTER_AUTH_URL: string;
+  BETTER_AUTH_TRUST_HOST: string;
   STRIPE: {
     STRIPE_SECRET_KEY: string;
     STRIPE_WEBHOOK_SECRET: string;
@@ -52,6 +55,9 @@ const loadEnvVariables = (): EnvConfig => {
     JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN || '1d',
     JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
     FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET as string,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || 'http://localhost:8080',
+    BETTER_AUTH_TRUST_HOST: process.env.BETTER_AUTH_TRUST_HOST || 'true',
     STRIPE: {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY as string,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET as string,
