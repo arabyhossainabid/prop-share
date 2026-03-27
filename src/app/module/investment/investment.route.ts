@@ -26,6 +26,18 @@ router.get(
   InvestmentController.checkHasInvestment
 );
 
+router.get(
+  '/session/:sessionId',
+  checkAuth(Role.USER, Role.ADMIN),
+  validateRequest(InvestmentValidation.getCheckoutSessionSchema),
+  InvestmentController.getCheckoutSessionDetails
+);
+
+router.get(
+  '/payment-failure/:transactionId',
+  InvestmentController.getPaymentFailureReason
+);
+
 // Note: Webhook is usually called directly in app.ts to avoid express.json() interference
 router.post('/webhook', InvestmentController.stripeWebhook);
 

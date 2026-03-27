@@ -28,10 +28,18 @@ const createCheckoutSession = async (
       'Only approved properties can be purchased'
     );
   }
-  if (!property.isPaid) {
+  const requiresPayment =
+    Boolean(property.isPaid) || Number(property.pricePerShare) > 0;
+  if (!requiresPayment) {
     throw new AppError(
       status.BAD_REQUEST,
-      'This property is free and does not require payment'
+      'This property is currently listed as free and cannot be purchased. Please check back later or contact support if this is an error.'
+    );
+  }
+  if (property.pricePerShare <= 0) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      'Invalid property price for checkout session'
     );
   }
   if (property.availableShares < shares) {
@@ -68,8 +76,8 @@ const createCheckoutSession = async (
       },
     ],
     mode: 'payment',
-    success_url: `${envVars.FRONTEND_URL}/properties/${propertyId}?payment=success`,
-    cancel_url: `${envVars.FRONTEND_URL}/properties/${propertyId}?payment=cancel`,
+    success_url: `${envVars.FRONTEND_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${envVars.FRONTEND_URL}/payment/cancel`,
     customer_email: user.email,
     metadata: {
       userId,
@@ -166,9 +174,100 @@ const hasInvestment = async (userId: string, propertyId: string) => {
   return !!investment;
 };
 
+const getCheckoutSessionDetails = async (sessionId: string, userId: string) => {
+  const investment = await db.investment.findFirst({
+    where: { stripeSessionId: sessionId },
+    include: {
+      property: { select: { id: true, title: true, images: true } },
+    },
+  });
+
+  if (!investment) {
+    throw new AppError(status.NOT_FOUND, 'Checkout session not found');
+  }
+
+  if (investment.userId !== userId) {
+    throw new AppError(
+      status.FORBIDDEN,
+      'You cannot access this checkout session'
+    );
+  }
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+  return {
+    sessionId,
+    paymentStatus: investment.status,
+    amount: investment.amount,
+    shares: investment.shares,
+    stripePaymentStatus: session.payment_status,
+    customerEmail: session.customer_email,
+    property: investment.property,
+    createdAt: investment.createdAt,
+  };
+};
+
+const getPaymentFailureReason = async (transactionId: string) => {
+  const investment = await db.investment.findUnique({
+    where: { id: transactionId },
+    include: {
+      property: { select: { id: true, title: true } },
+      user: { select: { name: true, email: true } },
+    },
+  });
+
+  if (!investment) {
+    throw new AppError(status.NOT_FOUND, 'Transaction not found');
+  }
+
+  let failureReason = 'Unknown error - Please contact support';
+  let failureCode = 'unknown_error';
+
+  if (investment.status === PaymentStatus.FAILED) {
+    // Try to retrieve Stripe session for detailed error info
+    if (investment.stripeSessionId) {
+      try {
+        const session = await stripe.checkout.sessions.retrieve(
+          investment.stripeSessionId
+        );
+        if ((session as any).last_payment_error) {
+          failureReason =
+            (session as any).last_payment_error.message || failureReason;
+          failureCode = (session as any).last_payment_error.code || failureCode;
+        } else {
+          failureReason = 'Payment session expired or was cancelled';
+          failureCode = 'session_expired';
+        }
+      } catch (err) {
+        failureReason = 'Could not retrieve payment details from Stripe';
+      }
+    }
+  } else if (investment.status === PaymentStatus.PENDING) {
+    failureReason = 'Payment is still pending - not yet completed';
+    failureCode = 'pending';
+  } else {
+    failureReason = 'Payment was successful';
+    failureCode = 'success';
+  }
+
+  return {
+    transactionId,
+    status: investment.status,
+    failureReason,
+    failureCode,
+    amount: investment.amount,
+    shares: investment.shares,
+    property: investment.property,
+    createdAt: investment.createdAt,
+    timestamp: new Date(),
+  };
+};
+
 export const InvestmentService = {
   createCheckoutSession,
   handleWebhook,
   getUserInvestments,
   hasInvestment,
+  getCheckoutSessionDetails,
+  getPaymentFailureReason,
 };

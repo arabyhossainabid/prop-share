@@ -7,7 +7,7 @@ const createCheckoutSessionSchema = z.object({
       .min(1, 'Property id is required'),
   }),
   body: z.object({
-    shares: z
+    shares: z.coerce
       .number({ invalid_type_error: 'Shares must be a number' })
       .int('Shares must be an integer')
       .min(1, 'Shares must be at least 1')
@@ -16,6 +16,15 @@ const createCheckoutSessionSchema = z.object({
   }),
 });
 
+const getCheckoutSessionSchema = z.object({
+  params: z.object({
+    sessionId: z
+      .string({ required_error: 'Session id is required' })
+      .min(1, 'Session id is required'),
+  }),
+});
+
 export const InvestmentValidation = {
   createCheckoutSessionSchema,
+  getCheckoutSessionSchema,
 };
