@@ -12,10 +12,10 @@ const bootstrap = async () => {
         // 2. Seed initial admin user
         await seedSuperAdmin();
 
-        // 3. Start Server
-        const port = envVars.PORT || 8080;
-        const server = app.listen(port, () => {
-            console.log(`PropShare API listening on http://localhost:${port}`);
+        // 3. Start Server - bind to all interfaces (0.0.0.0) for proper port detection
+        const port = parseInt(envVars.PORT) || 8080;
+        const server = app.listen(port, '0.0.0.0', () => {
+            console.log(`PropShare API listening on http://0.0.0.0:${port}`);
         });
 
         // Unhandled Rejection handle
@@ -31,6 +31,7 @@ const bootstrap = async () => {
         });
     } catch (error) {
         console.error('Failed to start server:', error);
+        process.exit(1);
     }
 };
 
