@@ -8,11 +8,8 @@ import { betterAuthHandler } from './betterAuth.handler';
 
 const router = Router();
 
-// BetterAuth routes (handles all OAuth, email verification, etc.)
-router.use(betterAuthHandler);
-
-// Legacy/backward-compatible routes that may be deprecated
-// These are maintained for existing frontend integrations
+// Legacy/backward-compatible routes (MUST come before betterAuthHandler middleware)
+// These handlers take priority and are maintained for existing frontend integrations
 
 router.post(
   '/register',
@@ -44,5 +41,9 @@ router.delete(
   checkAuth(Role.USER, Role.ADMIN),
   AuthController.deleteAccount
 );
+
+// BetterAuth routes (handles OAuth, sign-in, sign-up, etc.)
+// Comes after legacy routes so legacy endpoints take priority
+router.use(betterAuthHandler);
 
 export const AuthRoutes: Router = router;

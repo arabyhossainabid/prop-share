@@ -36,15 +36,26 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 const refreshToken = catchAsync(async (req: Request, res: Response) => {
-  // Priority: Cookie first, then header (if passed specifically)
-  let token = req.cookies.refreshToken || req.headers.authorization;
+  // Priority: Cookie > Authorization Header > Request Body
+  let token = req.cookies.refreshToken;
 
-  if (typeof token === 'string' && token.toLowerCase().startsWith('bearer ')) {
-    token = token.split(' ')[1];
+  // Try Authorization header if cookie not found
+  if (!token && req.headers.authorization) {
+    const authHeader = req.headers.authorization.trim();
+    if (authHeader.toLowerCase().startsWith('bearer ')) {
+      token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    } else {
+      token = authHeader;
+    }
+  }
+
+  // Try request body if still not found
+  if (!token && req.body.refreshToken) {
+    token = req.body.refreshToken;
   }
 
   if (!token) {
-    throw new AppError(status.UNAUTHORIZED, 'No refresh token provided.');
+    throw new AppError(status.UNAUTHORIZED, 'No refresh token provided');
   }
 
   const result = await AuthService.refreshToken(token);

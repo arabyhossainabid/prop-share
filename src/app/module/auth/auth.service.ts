@@ -59,26 +59,58 @@ const loginUser = async (payload: any) => {
 };
 
 const refreshToken = async (token: string) => {
-  const verifiedToken = jwtUtils.verifyToken(token, envVars.JWT_REFRESH_SECRET);
-  if (!verifiedToken.success || !verifiedToken.data) {
-    throw new AppError(status.UNAUTHORIZED, 'Invalid refresh token');
+  try {
+    if (!token || typeof token !== 'string') {
+      throw new AppError(status.BAD_REQUEST, 'Invalid token format');
+    }
+
+    const verifiedToken = jwtUtils.verifyToken(
+      token,
+      envVars.JWT_REFRESH_SECRET
+    );
+
+    if (!verifiedToken.success || !verifiedToken.data) {
+      throw new AppError(
+        status.UNAUTHORIZED,
+        'Invalid or expired refresh token'
+      );
+    }
+
+    const { userId } = verifiedToken.data as any;
+
+    if (!userId) {
+      throw new AppError(status.UNAUTHORIZED, 'Token missing userId claim');
+    }
+
+    const user = await db.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new AppError(status.NOT_FOUND, 'User not found');
+    }
+
+    if (!user.isActive) {
+      throw new AppError(status.FORBIDDEN, 'Your account is deactivated');
+    }
+
+    const jwtPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    };
+    const accessToken = jwtUtils.getAccessToken(jwtPayload);
+
+    return { accessToken };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError(
+      status.INTERNAL_SERVER_ERROR,
+      'Token refresh failed: ' +
+        (error instanceof Error ? error.message : 'Unknown error')
+    );
   }
-
-  const { userId } = verifiedToken.data;
-  const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user) throw new AppError(status.NOT_FOUND, 'User not found');
-  if (!user.isActive)
-    throw new AppError(status.FORBIDDEN, 'Your account is deactivated');
-
-  const jwtPayload = {
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    name: user.name,
-  };
-  const accessToken = jwtUtils.getAccessToken(jwtPayload);
-
-  return { accessToken };
 };
 
 const getMe = async (userId: string) => {

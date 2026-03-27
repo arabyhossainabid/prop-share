@@ -76,6 +76,6 @@ export const seedSuperAdmin = async () => {
       });
     }
   } catch (error) {
-    console.error('❌ Seed error:', error);
+    console.error('Seed error:', error);
   }
 };
