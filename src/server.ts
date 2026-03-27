@@ -14,8 +14,8 @@ const bootstrap = async () => {
 
     // 3. Start Server - bind to localhost for development
     const port = parseInt(envVars.PORT) || 8080;
-    const server = app.listen(port, 'localhost', () => {
-      console.log(`PropShare API listening on http://localhost:${port}`);
+    const server = app.listen(port, () => {
+      console.log(`PropShare API listening on port ${port}`);
     });
 
     // Unhandled Rejection handle
