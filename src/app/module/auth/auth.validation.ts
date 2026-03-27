@@ -1,27 +1,32 @@
 import { z } from 'zod';
 
 const register = z.object({
-    body: z.object({
-        name: z.string().min(2, 'Name must be at least 2 characters'),
-        email: z.string().email('Invalid email address'),
-        password: z.string().min(6, 'Password must be at least 6 characters'),
-        bio: z.string().optional(),
-    }),
+  body: z.object({
+    name: z.string().min(2, 'Name must be at least 2 characters'),
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    phone: z
+      .string({ required_error: 'Phone number is required' })
+      .min(6, 'Phone number is too short')
+      .max(20, 'Phone number is too long'),
+    bio: z.string().optional(),
+  }),
 });
 
 const login = z.object({
-    body: z.object({
-        email: z.string().email('Invalid email address'),
-        password: z.string().min(1, 'Password is required'),
-    }),
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(1, 'Password is required'),
+  }),
 });
 
 const updateProfile = z.object({
-    body: z.object({
-        name: z.string().min(2).optional(),
-        bio: z.string().optional(),
-        avatar: z.string().url().optional(),
-    }),
+  body: z.object({
+    name: z.string().min(2).optional(),
+    phone: z.string().optional(),
+    bio: z.string().optional(),
+    avatar: z.string().url().optional(),
+  }),
 });
 
 export const AuthValidation = { register, login, updateProfile };
