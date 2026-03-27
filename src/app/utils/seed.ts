@@ -66,7 +66,6 @@ export const seedSuperAdmin = async () => {
         isActive: true,
       },
     });
-    console.log(`✅ Admin user seeded/updated: ${ADMIN_CONFIG.email}`);
 
     // Seed default property categories
     for (const cat of defaultCategories) {
@@ -76,7 +75,6 @@ export const seedSuperAdmin = async () => {
         update: {},
       });
     }
-    console.log('✅ PropShare Categories seeded');
   } catch (error) {
     console.error('❌ Seed error:', error);
   }

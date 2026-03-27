@@ -40,14 +40,6 @@ cloudinary.config({
   api_secret: envVars.CLOUDINARY.API_SECRET,
 });
 
-if (envVars.NODE_ENV === 'development') {
-  console.log('[Cloudinary] Config loaded:', {
-    cloudName: envVars.CLOUDINARY.CLOUD_NAME,
-    apiKeyPresent: Boolean(envVars.CLOUDINARY.API_KEY),
-    apiSecretPresent: Boolean(envVars.CLOUDINARY.API_SECRET),
-  });
-}
-
 export const cloudinaryUpload = {
   upload: async (path: string, folder: string = 'propshare') => {
     if (
