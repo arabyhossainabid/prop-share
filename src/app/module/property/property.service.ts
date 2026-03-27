@@ -10,13 +10,36 @@ import { prisma } from '../../lib/prisma';
  */
 const db = prisma as any;
 
+const ensureSubmittablePropertyData = (property: any) => {
+  const missingFields: string[] = [];
+
+  if (!property.title?.trim()) missingFields.push('title');
+  if (!property.location?.trim()) missingFields.push('location');
+  if (!property.description?.trim()) missingFields.push('description');
+  if (!property.categoryId) missingFields.push('categoryId');
+  if (!property.pricePerShare || property.pricePerShare <= 0)
+    missingFields.push('pricePerShare');
+  if (!property.totalShares || property.totalShares < 1)
+    missingFields.push('totalShares');
+
+  if (missingFields.length > 0) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      `Property is not ready for submission. Missing/invalid fields: ${missingFields.join(', ')}`
+    );
+  }
+};
+
 const createProperty = async (
   userId: string,
   payload: any
 ): Promise<Property> => {
+  const pricePerShare = Number(payload.pricePerShare);
+
   return await db.property.create({
     data: {
       ...payload,
+      isPaid: pricePerShare > 0,
       authorId: userId,
       availableShares: payload.totalShares,
       status: 'DRAFT' as any,
@@ -139,7 +162,7 @@ const getPropertyById = async (id: string, user?: any) => {
   }
 
   if (
-    property.isPaid &&
+    (Boolean(property.isPaid) || Number(property.pricePerShare) > 0) &&
     user?.role !== ('ADMIN' as any) &&
     user?.userId !== property.authorId
   ) {
@@ -176,21 +199,51 @@ const getPropertyById = async (id: string, user?: any) => {
 };
 
 const getMyProperties = async (userId: string, query: any) => {
-  const { page = 1, limit = 10 } = query;
+  const { page = 1, limit = 10, status: propertyStatus } = query;
   const skip = (Number(page) - 1) * Number(limit);
+
+  const where: any = { authorId: userId };
+
+  // Filter by status if provided
+  if (propertyStatus) {
+    const validStatuses = ['DRAFT', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'];
+    if (validStatuses.includes(propertyStatus)) {
+      where.status = propertyStatus;
+    }
+  }
 
   const [data, total] = await Promise.all([
     db.property.findMany({
-      where: { authorId: userId },
+      where,
       include: { category: true, _count: true },
       skip,
       take: Number(limit),
       orderBy: { createdAt: 'desc' },
     }),
-    db.property.count({ where: { authorId: userId } }),
+    db.property.count({ where }),
   ]);
 
   return { data, meta: { total, page: Number(page), limit: Number(limit) } };
+};
+
+const getMyPropertiesStats = async (userId: string) => {
+  const where = { authorId: userId };
+
+  const [all, approved, under_review, draft, rejected] = await Promise.all([
+    db.property.count({ where }),
+    db.property.count({ where: { ...where, status: 'APPROVED' } }),
+    db.property.count({ where: { ...where, status: 'UNDER_REVIEW' } }),
+    db.property.count({ where: { ...where, status: 'DRAFT' } }),
+    db.property.count({ where: { ...where, status: 'REJECTED' } }),
+  ]);
+
+  return {
+    all,
+    approved,
+    under_review,
+    draft,
+    rejected,
+  };
 };
 
 const updateProperty = async (
@@ -208,21 +261,50 @@ const updateProperty = async (
     throw new AppError(status.BAD_REQUEST, 'Cannot edit an approved property');
   }
 
-  if (payload.totalShares !== undefined) {
+  const sanitizedPayload: any = Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined)
+  );
+
+  if (
+    Object.prototype.hasOwnProperty.call(sanitizedPayload, 'categoryId') &&
+    (sanitizedPayload.categoryId === '' || sanitizedPayload.categoryId === null)
+  ) {
+    delete sanitizedPayload.categoryId;
+  }
+
+  if (sanitizedPayload.categoryId) {
+    const categoryExists = await db.category.findUnique({
+      where: { id: sanitizedPayload.categoryId },
+    });
+
+    if (!categoryExists) {
+      throw new AppError(status.BAD_REQUEST, 'Invalid categoryId');
+    }
+  }
+
+  if (sanitizedPayload.totalShares !== undefined) {
     const soldShares = property.totalShares - property.availableShares;
-    if (payload.totalShares < soldShares) {
+    if (sanitizedPayload.totalShares < soldShares) {
       throw new AppError(
         status.BAD_REQUEST,
         `Total shares cannot be less than already sold shares (${soldShares})`
       );
     }
 
-    payload.availableShares = payload.totalShares - soldShares;
+    sanitizedPayload.availableShares =
+      sanitizedPayload.totalShares - soldShares;
   }
+
+  const effectivePricePerShare =
+    sanitizedPayload.pricePerShare !== undefined
+      ? Number(sanitizedPayload.pricePerShare)
+      : Number(property.pricePerShare);
+
+  sanitizedPayload.isPaid = effectivePricePerShare > 0;
 
   return await db.property.update({
     where: { id },
-    data: payload,
+    data: sanitizedPayload,
   });
 };
 
@@ -245,6 +327,8 @@ const submitForReview = async (id: string, userId: string) => {
   ) {
     throw new AppError(status.BAD_REQUEST, 'Property is already under review');
   }
+
+  ensureSubmittablePropertyData(property);
 
   return await db.property.update({
     where: { id },
@@ -308,15 +392,48 @@ const getFeaturedProperties = async () => {
   });
 };
 
+const getPublicSummary = async () => {
+  const [
+    totalApprovedProperties,
+    totalCategories,
+    successfulInvestments,
+    uniqueInvestorRows,
+    totalRevenueAgg,
+  ] = await Promise.all([
+    db.property.count({ where: { status: 'APPROVED' as any } }),
+    db.category.count(),
+    db.investment.count({ where: { status: 'SUCCESS' as any } }),
+    db.investment.findMany({
+      where: { status: 'SUCCESS' as any },
+      distinct: ['userId'],
+      select: { userId: true },
+    }),
+    db.investment.aggregate({
+      where: { status: 'SUCCESS' as any },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  return {
+    totalApprovedProperties,
+    totalCategories,
+    totalSuccessfulInvestments: successfulInvestments,
+    totalInvestors: uniqueInvestorRows.length,
+    totalRevenue: (totalRevenueAgg as any)._sum.amount || 0,
+  };
+};
+
 export const PropertyService = {
   createProperty,
   getAllProperties,
   getFeaturedProperties,
   getPropertyById,
   getMyProperties,
+  getMyPropertiesStats,
   updateProperty,
   submitForReview,
   deleteProperty,
   reviewProperty,
   toggleFeatured,
+  getPublicSummary,
 };

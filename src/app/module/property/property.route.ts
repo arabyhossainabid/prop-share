@@ -1,6 +1,6 @@
 import { Role } from '@prisma/client';
 import { Router } from 'express';
-import { checkAuth } from '../../middleware/checkAuth';
+import { checkAuth, checkAuthOptional } from '../../middleware/checkAuth';
 import validateRequest from '../../middleware/validateRequest';
 import { PropertyController } from './property.controller';
 import { PropertyValidation } from './property.validation';
@@ -8,6 +8,7 @@ import { PropertyValidation } from './property.validation';
 const router = Router();
 
 // Public routes
+router.get('/summary', PropertyController.getPublicSummary);
 router.get('/', PropertyController.getAllProperties);
 router.get('/featured', PropertyController.getFeaturedProperties);
 
@@ -25,7 +26,13 @@ router.get(
   PropertyController.getMyProperties
 );
 
-router.get('/:id', PropertyController.getPropertyById);
+router.get(
+  '/my-properties/stats',
+  checkAuth(Role.USER, Role.ADMIN),
+  PropertyController.getMyPropertiesStats
+);
+
+router.get('/:id', checkAuthOptional(), PropertyController.getPropertyById);
 
 router.patch(
   '/:id',
