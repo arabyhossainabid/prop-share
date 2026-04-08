@@ -34,6 +34,23 @@ router.patch(
   AuthController.updateProfile
 );
 
+router.patch(
+  '/profile/update',
+  checkAuth(Role.USER, Role.ADMIN),
+  validateRequest(AuthValidation.updateProfile),
+  AuthController.updateProfile
+);
+
+router.post(
+  '/forgot-password',
+  AuthController.forgotPassword
+);
+
+router.post(
+  '/social-login',
+  AuthController.socialLogin
+);
+
 router.get('/me', checkAuth(Role.USER, Role.ADMIN), AuthController.getMe);
 
 router.delete(

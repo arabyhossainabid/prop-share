@@ -19,6 +19,12 @@ router.get(
   AIController.getSearchSuggestions
 );
 
+router.get(
+  '/trending',
+  aiRateLimiter,
+  AIController.getTrending
+);
+
 router.post(
   '/chat',
   aiRateLimiter, // Apply 5 max requests per 10 mins

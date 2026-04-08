@@ -40,8 +40,20 @@ const chatAssistant = catchAsync(async (req: Request, res: Response) => {
   res.status(status.OK).send(result);
 });
 
+const getTrending = catchAsync(async (req: Request, res: Response) => {
+  const result = await AIService.getTrendingProperties();
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: 'AI Trending properties retrieved successfully',
+    data: result,
+  });
+});
+
 export const AIController = {
   getSearchSuggestions,
   getRecommendations,
+  getTrending,
   chatAssistant,
 };

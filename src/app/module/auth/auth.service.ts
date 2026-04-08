@@ -117,6 +117,50 @@ const deleteAccount = async (userId: string) => {
   });
 };
 
+const forgotPassword = async (email: string) => {
+  const user = await db.user.findUnique({ where: { email } });
+  if (!user) throw new AppError(status.NOT_FOUND, 'User not found');
+
+  // Logic to send reset email goes here
+  return { message: 'Password reset link sent to your email' };
+};
+
+const socialLogin = async (payload: {
+  email: string;
+  name?: string;
+  avatar?: string;
+  provider: string;
+}) => {
+  let user = await db.user.findUnique({ where: { email: payload.email } });
+  let isNewUser = false;
+
+  if (!user) {
+    user = await db.user.create({
+      data: {
+        email: payload.email,
+        name: payload.name || payload.email.split('@')[0],
+        avatar: payload.avatar,
+        emailVerified: true,
+        role: 'USER',
+        isActive: true,
+      },
+    });
+    isNewUser = true;
+  }
+
+  const jwtPayload = {
+    userId: user!.id,
+    email: user!.email,
+    role: user!.role,
+    name: user!.name || '',
+  };
+
+  const accessToken = jwtUtils.getAccessToken(jwtPayload);
+  const refreshToken = jwtUtils.getRefreshToken(jwtPayload);
+
+  return { user, accessToken, refreshToken, isNewUser };
+};
+
 export const AuthService = {
   registerUser,
   loginUser,
@@ -124,4 +168,6 @@ export const AuthService = {
   getMe,
   updateProfile,
   deleteAccount,
+  forgotPassword,
+  socialLogin,
 };

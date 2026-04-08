@@ -37,8 +37,19 @@ export const auth = betterAuth({
   basePath: '/api/v1/auth',
   // Trusted origins for CORS and redirects
   trustedOrigins: [envVars.FRONTEND_URL, envVars.BETTER_AUTH_URL],
-  // OAuth providers configuration (only if credentials available)
+  // Email and Password authentication configuration
+  emailAndPassword: {
+    enabled: true,
+  },
+  // Social providers configuration
   socialProviders,
+  // Session configuration
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // 5 minutes
+    },
+  },
 });
 
 // Export session type for use in other parts of the app

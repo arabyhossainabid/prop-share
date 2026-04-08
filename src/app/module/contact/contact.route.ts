@@ -14,6 +14,13 @@ router.post(
   ContactController.submitMessage
 );
 
+router.post(
+  '/submit',
+  checkAuthOptional(),
+  validateRequest(ContactValidation.createContactSchema),
+  ContactController.submitMessage
+);
+
 router.get('/', checkAuth(Role.ADMIN), ContactController.getAllMessages);
 
 router.delete('/:id', checkAuth(Role.ADMIN), ContactController.deleteMessage);

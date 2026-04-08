@@ -13,6 +13,10 @@ import { PropertyRoutes } from '../module/property/property.route';
 import { VoteRoutes } from '../module/vote/vote.route';
 import { UploadRoutes } from './upload.route';
 
+import { DashboardRoutes } from '../module/dashboard/dashboard.route';
+
+import { FaqRoutes } from '../module/faq/faq.route';
+
 const router = Router();
 
 const moduleRoutes = [
@@ -29,6 +33,8 @@ const moduleRoutes = [
   { path: '/contacts', route: ContactRoutes },
   { path: '/blogs', route: BlogRoutes },
   { path: '/content', route: ContentRoutes },
+  { path: '/dashboard', route: DashboardRoutes },
+  { path: '/faqs', route: FaqRoutes },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

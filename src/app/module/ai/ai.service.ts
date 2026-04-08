@@ -100,9 +100,22 @@ const getRecommendations = async (userId?: string) => {
   return trendingProperties;
 };
 import { envVars } from '../../config/env';
+const getTrendingProperties = async () => {
+  return await db.property.findMany({
+    where: { status: 'APPROVED' },
+    orderBy: { viewCount: 'desc' },
+    take: 10,
+    include: {
+      category: true,
+      author: { select: { name: true, avatar: true } },
+    },
+  });
+};
+
 export const AIService = {
   getSearchSuggestions,
   getRecommendations,
+  getTrendingProperties,
   chatWithAssistant: async (message: string) => {
     if (!envVars.OPENROUTER_API_KEY) {
       throw new AppError(

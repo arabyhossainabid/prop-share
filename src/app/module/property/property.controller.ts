@@ -153,6 +153,28 @@ const toggleFeatured = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getCategories = catchAsync(async (req: Request, res: Response) => {
+  const result = await PropertyService.getCategories();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: 'Categories fetched successfully',
+    data: result,
+  });
+});
+
+const getPropertyReviews = catchAsync(async (req: Request, res: Response) => {
+  const result = await PropertyService.getPropertyReviews(
+    req.params.id as string
+  );
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: 'Property reviews fetched successfully',
+    data: result,
+  });
+});
+
 export const PropertyController = {
   createProperty,
   getAllProperties,
@@ -166,4 +188,6 @@ export const PropertyController = {
   deleteProperty,
   reviewProperty,
   toggleFeatured,
+  getCategories,
+  getPropertyReviews,
 };

@@ -423,6 +423,25 @@ const getPublicSummary = async () => {
   };
 };
 
+const getCategories = async () => {
+  return await db.category.findMany({
+    include: { _count: { select: { properties: true } } },
+  });
+};
+
+const getPropertyReviews = async (propertyId: string) => {
+  return await db.comment.findMany({
+    where: { propertyId, isDeleted: false },
+    include: {
+      user: { select: { name: true, avatar: true } },
+      replies: {
+        include: { user: { select: { name: true, avatar: true } } },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+};
+
 export const PropertyService = {
   createProperty,
   getAllProperties,
@@ -436,4 +455,6 @@ export const PropertyService = {
   reviewProperty,
   toggleFeatured,
   getPublicSummary,
+  getCategories,
+  getPropertyReviews,
 };

@@ -9,8 +9,12 @@ const router = Router();
 
 // Public routes
 router.get('/summary', PropertyController.getPublicSummary);
+router.get('/categories', PropertyController.getCategories);
+router.get('/search', PropertyController.getAllProperties);
 router.get('/', PropertyController.getAllProperties);
 router.get('/featured', PropertyController.getFeaturedProperties);
+
+router.get('/:id/reviews', PropertyController.getPropertyReviews);
 
 // Member routes
 router.post(
