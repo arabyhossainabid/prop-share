@@ -31,8 +31,8 @@ export const auth = betterAuth({
   }),
   // Secret key for signing tokens and sessions
   secret: envVars.BETTER_AUTH_SECRET,
-  // Base URL for auth service
-  baseURL: envVars.BETTER_AUTH_URL,
+  // Base URL for auth service (ensure no trailing slash)
+  baseURL: envVars.BETTER_AUTH_URL.replace(/\/$/, ""),
   // Base path where auth routes are mounted
   basePath: '/api/v1/auth',
   // Trusted origins for CORS and redirects
