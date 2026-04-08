@@ -4,7 +4,6 @@ import { checkAuth } from '../../middleware/checkAuth';
 import validateRequest from '../../middleware/validateRequest';
 import { AuthController } from './auth.controller';
 import { AuthValidation } from './auth.validation';
-import { betterAuthHandler } from './betterAuth.handler';
 
 const router = Router();
 
@@ -61,6 +60,5 @@ router.delete(
 
 // BetterAuth routes (handles OAuth, sign-in, sign-up, etc.)
 // Comes after legacy routes so legacy endpoints take priority
-router.use(betterAuthHandler);
 
 export const AuthRoutes: Router = router;

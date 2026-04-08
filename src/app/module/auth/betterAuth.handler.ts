@@ -1,10 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 import { auth } from '../../lib/betterAuth';
-import { toNodeHandler } from 'better-auth/node';
 
 /**
  * BetterAuth request handler middleware.
- * Includes improved logging to troubleshoot 404 errors.
+ * Optimized to handle BetterAuth routes and pass-through others to Express routers.
  */
 export const betterAuthHandler = async (
   req: Request,
@@ -12,16 +11,49 @@ export const betterAuthHandler = async (
   next: NextFunction
 ) => {
   try {
-    // Restore the full URL for the internal router
-    req.url = req.originalUrl;
+    // Ensure req.url is the full path for BetterAuth's internal router
+    const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
     
-    // DEBUG: Log the incoming URL to terminal to see what BetterAuth is receiving
-    console.log(`[BetterAuth] Handling: ${req.method} ${req.url}`);
+    const request = new Request(fullUrl, {
+      method: req.method,
+      headers: req.headers as any,
+      body: ['POST', 'PUT', 'PATCH'].includes(req.method)
+        ? JSON.stringify(req.body)
+        : undefined,
+    });
 
-    // Process with Node standard handler
-    return toNodeHandler(auth.handler)(req, res);
+    // Check if BetterAuth should handle this request
+    const response = await auth.handler(request);
+
+    if (response) {
+      // If the response is a 404, it might mean BetterAuth doesn't handle this route
+      // However, we should check the body/status more carefully
+      if (response.status === 404) {
+        return next();
+      }
+
+      // Apply BetterAuth status and headers
+      res.status(response.status);
+      response.headers.forEach((value, key) => {
+        res.setHeader(key, value);
+      });
+
+      // Send the body
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const body = await response.json();
+        return res.json(body);
+      } else {
+        const body = await response.text();
+        return res.send(body);
+      }
+    } else {
+      // No response from BetterAuth, move to next middleware
+      return next();
+    }
   } catch (error) {
-    console.error('BetterAuth Handler Error:', error);
-    return next(error);
+    // Log error but try to continue to other routes if possible
+    console.error('[BetterAuth Handler Error]:', error);
+    next();
   }
 };

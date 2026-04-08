@@ -7,6 +7,7 @@ import { globalErrorHandler } from './app/middleware/globalErrorHandler';
 import { notFound } from './app/middleware/notFound';
 import { InvestmentController } from './app/module/investment/investment.controller';
 import { IndexRoutes } from './app/routes';
+import { betterAuthHandler } from './app/module/auth/betterAuth.handler';
 
 const app: Express = express();
 
@@ -43,6 +44,7 @@ if (envVars.NODE_ENV === 'development') {
 }
 
 // Routes
+app.use('/api/v1/auth', betterAuthHandler);
 app.use('/api/v1', IndexRoutes);
 
 // Health check
