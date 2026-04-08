@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { AdminRoutes } from '../module/admin/admin.route';
+import { AIRoutes } from '../module/ai/ai.route';
 import { AuthRoutes } from '../module/auth/auth.route';
 import { BlogRoutes } from '../module/blog/blog.route';
 import { CategoryRoutes } from '../module/category/category.route';
@@ -15,6 +16,7 @@ import { UploadRoutes } from './upload.route';
 const router = Router();
 
 const moduleRoutes = [
+  { path: '/ai', route: AIRoutes },
   { path: '/auth', route: AuthRoutes },
   { path: '/categories', route: CategoryRoutes },
   { path: '/properties', route: PropertyRoutes },

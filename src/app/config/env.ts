@@ -23,6 +23,7 @@ interface EnvConfig {
     API_KEY: string;
     API_SECRET: string;
   };
+  OPENROUTER_API_KEY: string;
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -62,6 +63,7 @@ const loadEnvVariables = (): EnvConfig => {
       API_KEY: process.env.CLOUDINARY_API_KEY as string,
       API_SECRET: process.env.CLOUDINARY_API_SECRET as string,
     },
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY as string,
   };
 };
 

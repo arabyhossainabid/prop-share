@@ -56,6 +56,7 @@ const getDashboardStats = async () => {
     totalInvestments,
     totalRevenue,
     recentProperties,
+    propertiesByCategory,
   ] = await Promise.all([
     db.user.count(),
     db.property.count(),
@@ -72,7 +73,20 @@ const getDashboardStats = async () => {
       orderBy: { createdAt: 'desc' },
       include: { author: { select: { name: true } }, category: true },
     }),
+    db.property.groupBy({
+      by: ['categoryId'],
+      _count: { categoryId: true },
+    }),
   ]);
+
+  // Transform propertiesByCategory for Pie chart
+  const categories = await db.category.findMany({
+    select: { id: true, name: true },
+  });
+  const pieChartData = propertiesByCategory.map((curr: any) => ({
+    name: categories.find((c: any) => c.id === curr.categoryId)?.name || 'Unknown',
+    value: curr._count.categoryId,
+  }));
 
   return {
     counters: {
@@ -85,6 +99,9 @@ const getDashboardStats = async () => {
       totalRevenue: (totalRevenue as any)._sum.amount || 0,
     },
     recentProperties,
+    charts: {
+      propertiesByCategory: pieChartData,
+    },
   };
 };
 
