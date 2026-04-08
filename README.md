@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/header.png" alt="PropShare Banner" width="840">
+</div>
+
 # PropShare Backend API
 
 PropShare Backend is a robust API powered by Node.js, Express, and Prisma, providing the foundation for fractional real estate investment, secure authentication, and property management.
@@ -93,4 +97,10 @@ CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 
 ```bash
 pnpm run dev
-````
+    ```
+
+---
+
+<div align="center">
+  <sub>Engineered by <b>Araby Hossain Abid</b></sub>
+</div>
