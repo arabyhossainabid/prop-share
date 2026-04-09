@@ -32,6 +32,10 @@ interface EnvConfig {
     API_SECRET: string;
   };
   OPENROUTER_API_KEY: string;
+  GOOGLE: {
+    CLIENT_ID: string;
+    CLIENT_SECRET: string;
+  };
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -80,6 +84,10 @@ const loadEnvVariables = (): EnvConfig => {
       API_SECRET: process.env.CLOUDINARY_API_SECRET as string,
     },
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY as string,
+    GOOGLE: {
+      CLIENT_ID: process.env.GOOGLE_CLIENT_ID as string,
+      CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
   };
 };
 

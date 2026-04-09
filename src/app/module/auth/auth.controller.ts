@@ -155,6 +155,30 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const googleLogin = catchAsync(async (req: Request, res: Response) => {
+  const { credential } = req.body;
+  if (!credential) {
+    throw new AppError(status.BAD_REQUEST, 'Google credential (ID token) is required');
+  }
+
+  const result = await AuthService.googleLogin(credential);
+  const { accessToken, refreshToken, user, isNewUser } = result;
+
+  res.cookie('refreshToken', refreshToken, {
+    secure: envVars.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: envVars.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: isNewUser ? 'Account created with Google successfully' : 'Google login successful',
+    data: { accessToken, user },
+  });
+});
+
 export const AuthController = {
   registerUser,
   loginUser,
@@ -164,6 +188,7 @@ export const AuthController = {
   logoutUser,
   deleteAccount,
   socialLogin,
+  googleLogin,
   forgotPassword,
   resetPassword,
 };

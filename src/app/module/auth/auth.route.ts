@@ -10,6 +10,9 @@ const router = Router();
 // 1. Social Login (Legacy endpoint — frontend sends Google token payload directly)
 router.post('/social-login', AuthController.socialLogin);
 
+// 1b. Google Sign-In — frontend sends Google ID token (credential), backend verifies & issues JWT
+router.post('/google/callback', AuthController.googleLogin);
+
 // 2. Register
 router.post(
   '/register',

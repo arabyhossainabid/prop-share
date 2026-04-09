@@ -1,11 +1,14 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import status from 'http-status';
 import { envVars } from '../../config/env';
 import AppError from '../../errorHelpers/AppError';
 import { prisma } from '../../lib/prisma';
 import { sendPasswordResetEmail } from '../../utils/email';
 import { jwtUtils } from '../../utils/jwt';
+
+const googleClient = new OAuth2Client(envVars.GOOGLE.CLIENT_ID);
 
 // Casting prisma to any at the top level to resolve persistent IDE type feedback
 // regarding model relation names not matching the currently generated client types.
@@ -243,6 +246,67 @@ const socialLogin = async (payload: {
   return { user, accessToken, refreshToken, isNewUser };
 };
 
+// ─── Google ID Token Login ────────────────────────────────────────────────────
+const googleLogin = async (credential: string) => {
+  // 1. Verify the Google ID token
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: envVars.GOOGLE.CLIENT_ID,
+    });
+  } catch {
+    throw new AppError(status.UNAUTHORIZED, 'Invalid Google token');
+  }
+
+  const payload = ticket.getPayload();
+  if (!payload || !payload.email) {
+    throw new AppError(status.BAD_REQUEST, 'Unable to retrieve email from Google token');
+  }
+
+  const { email, name, picture, email_verified } = payload;
+
+  if (!email_verified) {
+    throw new AppError(status.BAD_REQUEST, 'Google account email is not verified');
+  }
+
+  // 2. Find or create user
+  let user = await db.user.findUnique({ where: { email } });
+  let isNewUser = false;
+
+  if (!user) {
+    user = await db.user.create({
+      data: {
+        email,
+        name: name || email.split('@')[0],
+        avatar: picture || null,
+        emailVerified: true,
+        role: 'USER',
+        isActive: true,
+      },
+    });
+    isNewUser = true;
+  }
+
+  if (!user.isActive) {
+    throw new AppError(status.FORBIDDEN, 'Your account has been deactivated');
+  }
+
+  // 3. Issue JWT tokens
+  const jwtPayload = {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name || '',
+  };
+
+  const accessToken = jwtUtils.getAccessToken(jwtPayload);
+  const refreshToken = jwtUtils.getRefreshToken(jwtPayload);
+
+  const { password: _pw, ...userWithoutPassword } = user;
+  return { user: userWithoutPassword, accessToken, refreshToken, isNewUser };
+};
+
 export const AuthService = {
   registerUser,
   loginUser,
@@ -253,4 +317,5 @@ export const AuthService = {
   forgotPassword,
   resetPassword,
   socialLogin,
+  googleLogin,
 };
