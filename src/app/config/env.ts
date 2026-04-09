@@ -14,6 +14,14 @@ interface EnvConfig {
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
   BETTER_AUTH_TRUST_HOST: string;
+  SMTP: {
+    HOST: string;
+    PORT: string;
+    SECURE: string;
+    USER: string;
+    PASS: string;
+    FROM: string;
+  };
   STRIPE: {
     STRIPE_SECRET_KEY: string;
     STRIPE_WEBHOOK_SECRET: string;
@@ -54,6 +62,14 @@ const loadEnvVariables = (): EnvConfig => {
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET as string,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || 'http://localhost:8080',
     BETTER_AUTH_TRUST_HOST: process.env.BETTER_AUTH_TRUST_HOST || 'true',
+    SMTP: {
+      HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
+      PORT: process.env.SMTP_PORT || '587',
+      SECURE: process.env.SMTP_SECURE || 'false',
+      USER: process.env.SMTP_USER as string,
+      PASS: process.env.SMTP_PASS as string,
+      FROM: process.env.SMTP_FROM || `"PropShare" <${process.env.SMTP_USER}>`,
+    },
     STRIPE: {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY as string,
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET as string,

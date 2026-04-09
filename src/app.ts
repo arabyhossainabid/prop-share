@@ -5,9 +5,9 @@ import morgan from 'morgan';
 import { envVars } from './app/config/env';
 import { globalErrorHandler } from './app/middleware/globalErrorHandler';
 import { notFound } from './app/middleware/notFound';
+import { betterAuthHandler } from './app/module/auth/betterAuth.handler';
 import { InvestmentController } from './app/module/investment/investment.controller';
 import { IndexRoutes } from './app/routes';
-import { betterAuthHandler } from './app/module/auth/betterAuth.handler';
 
 const app: Express = express();
 
@@ -43,9 +43,21 @@ if (envVars.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Routes
-app.use('/api/v1/auth', betterAuthHandler);
+// ==========================================
+// ROUTES (Strict Priority Order)
+// ==========================================
+
+// ✅ FIRST: Custom app routes (register, login, me, etc.)
+// Custom /auth/* routes must run before BetterAuth so they are not swallowed.
 app.use('/api/v1', IndexRoutes);
+
+// ✅ SECOND: BetterAuth handles OAuth callbacks, sessions, sign-in/email, etc.
+// Any /api/v1/auth/* path NOT handled by custom routes falls through to here.
+app.all('/api/v1/auth/*', (req, res) => {
+  return betterAuthHandler(req, res);
+});
+
+// ==========================================
 
 // Health check
 app.get('/', (req: Request, res: Response) => {

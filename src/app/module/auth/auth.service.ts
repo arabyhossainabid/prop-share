@@ -1,8 +1,10 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import status from 'http-status';
 import { envVars } from '../../config/env';
 import AppError from '../../errorHelpers/AppError';
 import { prisma } from '../../lib/prisma';
+import { sendPasswordResetEmail } from '../../utils/email';
 import { jwtUtils } from '../../utils/jwt';
 
 // Casting prisma to any at the top level to resolve persistent IDE type feedback
@@ -10,18 +12,16 @@ import { jwtUtils } from '../../utils/jwt';
 const db = prisma as any;
 
 const registerUser = async (payload: any) => {
-  if (!payload.phone) {
-    throw new AppError(status.BAD_REQUEST, 'Phone number is required');
-  }
-
   const isExist = await db.user.findUnique({ where: { email: payload.email } });
   if (isExist) throw new AppError(status.BAD_REQUEST, 'Email already exists');
 
-  const isPhoneExist = await db.user.findFirst({
-    where: { phone: payload.phone },
-  });
-  if (isPhoneExist)
-    throw new AppError(status.BAD_REQUEST, 'Phone number already exists');
+  if (payload.phone) {
+    const isPhoneExist = await db.user.findFirst({
+      where: { phone: payload.phone },
+    });
+    if (isPhoneExist)
+      throw new AppError(status.BAD_REQUEST, 'Phone number already exists');
+  }
 
   const hashedPassword = await bcrypt.hash(payload.password, 12);
   const user = await db.user.create({
@@ -38,7 +38,10 @@ const loginUser = async (payload: any) => {
   if (!user.isActive)
     throw new AppError(status.FORBIDDEN, 'Your account is deactivated');
   if (!user.password)
-    throw new AppError(status.BAD_REQUEST, 'Please login with Google');
+    throw new AppError(
+      status.BAD_REQUEST,
+      'This account uses Google Sign-In. Please login with Google.'
+    );
 
   const isMatched = await bcrypt.compare(payload.password, user.password);
   if (!isMatched)
@@ -117,12 +120,91 @@ const deleteAccount = async (userId: string) => {
   });
 };
 
-const forgotPassword = async (email: string) => {
-  const user = await db.user.findUnique({ where: { email } });
-  if (!user) throw new AppError(status.NOT_FOUND, 'User not found');
+const RESET_TOKEN_EXPIRES_MS = 60 * 60 * 1000; // 1 hour
 
-  // Logic to send reset email goes here
-  return { message: 'Password reset link sent to your email' };
+const forgotPassword = async (email: string) => {
+  // Always return success to prevent email enumeration attacks
+  const user = await db.user.findUnique({ where: { email } });
+  if (!user) {
+    return {
+      message: 'If an account exists, a password reset link has been sent.',
+    };
+  }
+
+  if (!user.password) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      'This account uses Google Sign-In. Password reset is not applicable.'
+    );
+  }
+
+  // Delete any existing reset tokens for this user
+  await db.verification.deleteMany({
+    where: { identifier: `reset-password:${email}` },
+  });
+
+  // Generate a secure random token
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(rawToken)
+    .digest('hex');
+
+  await db.verification.create({
+    data: {
+      identifier: `reset-password:${email}`,
+      value: hashedToken,
+      expiresAt: new Date(Date.now() + RESET_TOKEN_EXPIRES_MS),
+      userId: user.id,
+    },
+  });
+
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+
+  await sendPasswordResetEmail(email, resetUrl, user.name || undefined);
+
+  return {
+    message: 'If an account exists, a password reset link has been sent.',
+  };
+};
+
+const resetPassword = async (token: string, newPassword: string) => {
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  // Find any verification record that matches this hashed token
+  const verification = await db.verification.findFirst({
+    where: {
+      value: hashedToken,
+      identifier: { startsWith: 'reset-password:' },
+      expiresAt: { gt: new Date() },
+    },
+  });
+
+  if (!verification) {
+    throw new AppError(status.BAD_REQUEST, 'Invalid or expired reset token');
+  }
+
+  const email = verification.identifier.replace('reset-password:', '');
+  const user = await db.user.findUnique({ where: { email } });
+  if (!user) {
+    throw new AppError(status.NOT_FOUND, 'User not found');
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  // Invalidate the token after use
+  await db.verification.delete({ where: { id: verification.id } });
+
+  return {
+    message:
+      'Password reset successfully. You can now login with your new password.',
+  };
 };
 
 const socialLogin = async (payload: {
@@ -169,5 +251,6 @@ export const AuthService = {
   updateProfile,
   deleteAccount,
   forgotPassword,
+  resetPassword,
   socialLogin,
 };

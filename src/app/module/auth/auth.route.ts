@@ -7,25 +7,47 @@ import { AuthValidation } from './auth.validation';
 
 const router = Router();
 
-// Legacy/backward-compatible routes (MUST come before betterAuthHandler middleware)
-// These handlers take priority and are maintained for existing frontend integrations
+// 1. Social Login (Legacy endpoint — frontend sends Google token payload directly)
+router.post('/social-login', AuthController.socialLogin);
 
+// 2. Register
 router.post(
   '/register',
   validateRequest(AuthValidation.register),
   AuthController.registerUser
 );
 
+// 3. Login
 router.post(
   '/login',
   validateRequest(AuthValidation.login),
   AuthController.loginUser
 );
 
+// 4. Refresh token
 router.post('/refresh-token', AuthController.refreshToken);
 
+// 5. Logout
 router.post('/logout', AuthController.logoutUser);
 
+// 6. Forgot password — sends reset email
+router.post(
+  '/forgot-password',
+  validateRequest(AuthValidation.forgotPassword),
+  AuthController.forgotPassword
+);
+
+// 7. Reset password — verifies token and sets new password
+router.post(
+  '/reset-password',
+  validateRequest(AuthValidation.resetPassword),
+  AuthController.resetPassword
+);
+
+// 8. Get current user
+router.get('/me', checkAuth(Role.USER, Role.ADMIN), AuthController.getMe);
+
+// 9. Update profile
 router.patch(
   '/update-profile',
   checkAuth(Role.USER, Role.ADMIN),
@@ -40,25 +62,11 @@ router.patch(
   AuthController.updateProfile
 );
 
-router.post(
-  '/forgot-password',
-  AuthController.forgotPassword
-);
-
-router.post(
-  '/social-login',
-  AuthController.socialLogin
-);
-
-router.get('/me', checkAuth(Role.USER, Role.ADMIN), AuthController.getMe);
-
+// 10. Delete account
 router.delete(
   '/delete-account',
   checkAuth(Role.USER, Role.ADMIN),
   AuthController.deleteAccount
 );
-
-// BetterAuth routes (handles OAuth, sign-in, sign-up, etc.)
-// Comes after legacy routes so legacy endpoints take priority
 
 export const AuthRoutes: Router = router;

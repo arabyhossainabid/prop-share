@@ -6,9 +6,10 @@ const register = z.object({
     email: z.string().email('Invalid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
     phone: z
-      .string({ required_error: 'Phone number is required' })
+      .string()
       .min(6, 'Phone number is too short')
-      .max(20, 'Phone number is too long'),
+      .max(20, 'Phone number is too long')
+      .optional(),
     bio: z.string().optional(),
   }),
 });
@@ -17,6 +18,19 @@ const login = z.object({
   body: z.object({
     email: z.string().email('Invalid email address'),
     password: z.string().min(1, 'Password is required'),
+  }),
+});
+
+const forgotPassword = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+  }),
+});
+
+const resetPassword = z.object({
+  body: z.object({
+    token: z.string().min(1, 'Reset token is required'),
+    newPassword: z.string().min(6, 'Password must be at least 6 characters'),
   }),
 });
 
@@ -29,4 +43,10 @@ const updateProfile = z.object({
   }),
 });
 
-export const AuthValidation = { register, login, updateProfile };
+export const AuthValidation = {
+  register,
+  login,
+  forgotPassword,
+  resetPassword,
+  updateProfile,
+};

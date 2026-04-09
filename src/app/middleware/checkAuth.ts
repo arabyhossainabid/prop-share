@@ -4,6 +4,7 @@ import status from 'http-status';
 import { envVars } from '../config/env';
 import AppError from '../errorHelpers/AppError';
 import { IRequestUser } from '../interfaces/requestUser.interface';
+import { auth } from '../lib/betterAuth';
 import { CookieUtils } from '../utils/cookie';
 import { jwtUtils } from '../utils/jwt';
 
@@ -21,74 +22,112 @@ const extractAccessToken = (req: Request): string | undefined => {
   return accessToken;
 };
 
+/**
+ * Enhanced auth middleware that supports:
+ * 1. Standard JWT (from Cookie or Header)
+ * 2. BetterAuth Sessions (from Cookie or Header)
+ */
 export const checkAuth =
   (...authRoles: Role[]) =>
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      // Require a valid access token for protected routes.
-      const accessToken = extractAccessToken(req);
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        let user: IRequestUser | null = null;
 
-      if (!accessToken) {
-        throw new AppError(
-          status.UNAUTHORIZED,
-          'Unauthorized access! No access token provided.'
-        );
+        // --- 1. Try Standard JWT ---
+        const accessToken = extractAccessToken(req);
+        if (accessToken) {
+          const verifiedToken = jwtUtils.verifyToken(
+            accessToken,
+            envVars.JWT_ACCESS_SECRET
+          );
+
+          if (verifiedToken.success && verifiedToken.data) {
+            user = verifiedToken.data as IRequestUser;
+          }
+        }
+
+        // --- 2. Try BetterAuth Session (Fallback/Alternative) ---
+        if (!user) {
+          const session = await auth.api.getSession({
+            headers: req.headers as any,
+          });
+
+          if (session?.user) {
+            user = {
+              userId: session.user.id,
+              email: session.user.email,
+              role: (session.user as any).role || 'USER',
+              name: session.user.name || '',
+            };
+          }
+        }
+
+        if (!user) {
+          throw new AppError(
+            status.UNAUTHORIZED,
+            'Unauthorized access! Please login.'
+          );
+        }
+
+        // --- 3. Enforce Role Guard ---
+        if (authRoles.length > 0 && !authRoles.includes(user.role)) {
+          throw new AppError(
+            status.FORBIDDEN,
+            'Forbidden access! You do not have permission.'
+          );
+        }
+
+        // Store authenticated user context (unify on req.verifiedUser)
+        req.verifiedUser = user;
+        // Also attach to req.user for BetterAuth compatibility if needed
+        (req as any).user = user;
+
+        next();
+      } catch (error: any) {
+        next(error);
       }
-
-      const verifiedToken = jwtUtils.verifyToken(
-        accessToken,
-        envVars.JWT_ACCESS_SECRET
-      );
-
-      if (!verifiedToken.success || !verifiedToken.data) {
-        throw new AppError(
-          status.UNAUTHORIZED,
-          'Unauthorized access! Invalid or expired access token.'
-        );
-      }
-
-      const user = verifiedToken.data as IRequestUser;
-
-      // Enforce role guard only when roles are provided to middleware.
-      if (authRoles.length > 0 && !authRoles.includes(user.role)) {
-        throw new AppError(
-          status.FORBIDDEN,
-          'Forbidden access! You do not have permission to access this resource.'
-        );
-      }
-
-      // Store authenticated user context for downstream handlers.
-      req.verifiedUser = user;
-
-      next();
-    } catch (error: any) {
-      next(error);
-    }
-  };
+    };
 
 export const checkAuthOptional =
   () => async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Public routes can continue without credentials.
-      const accessToken = extractAccessToken(req);
+      let user: IRequestUser | null = null;
 
-      if (!accessToken) {
-        return next();
+      // Try JWT
+      const accessToken = extractAccessToken(req);
+      if (accessToken) {
+        const verifiedToken = jwtUtils.verifyToken(
+          accessToken,
+          envVars.JWT_ACCESS_SECRET
+        );
+        if (verifiedToken.success && verifiedToken.data) {
+          user = verifiedToken.data as IRequestUser;
+        }
       }
 
-      const verifiedToken = jwtUtils.verifyToken(
-        accessToken,
-        envVars.JWT_ACCESS_SECRET
-      );
+      // Try BetterAuth
+      if (!user) {
+        const session = await auth.api.getSession({
+          headers: req.headers as any,
+        });
+        if (session?.user) {
+          user = {
+            userId: session.user.id,
+            email: session.user.email,
+            role: (session.user as any).role || 'USER',
+            name: session.user.name || '',
+          };
+        }
+      }
 
-      // Attach user context only when the token is valid.
-      if (verifiedToken.success && verifiedToken.data) {
-        req.verifiedUser = verifiedToken.data as IRequestUser;
+      if (user) {
+        req.verifiedUser = user;
+        (req as any).user = user;
       }
 
       next();
     } catch {
-      // Public route: ignore token parse issues and continue as anonymous.
       next();
     }
   };
+

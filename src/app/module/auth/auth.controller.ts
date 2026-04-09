@@ -93,6 +93,10 @@ const updateProfile = catchAsync(async (req: Request, res: Response) => {
 
 const logoutUser = catchAsync(async (req: Request, res: Response) => {
   res.clearCookie('refreshToken');
+  res.clearCookie('accessToken');
+  // Clear BetterAuth session cookie (standard name)
+  res.clearCookie('better-auth.session_token');
+
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
@@ -141,6 +145,16 @@ const forgotPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const resetPassword = catchAsync(async (req: Request, res: Response) => {
+  const { token, newPassword } = req.body;
+  const result = await AuthService.resetPassword(token, newPassword);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+  });
+});
+
 export const AuthController = {
   registerUser,
   loginUser,
@@ -151,4 +165,5 @@ export const AuthController = {
   deleteAccount,
   socialLogin,
   forgotPassword,
+  resetPassword,
 };
